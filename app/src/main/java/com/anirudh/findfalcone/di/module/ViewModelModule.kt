@@ -15,6 +15,6 @@ public abstract class ViewModelModule {
     @Binds
     @IntoMap
     @ViewModelKey(FindFalconViewModel::class)
-    protected abstract fun searchViewModel(findFalconViewModel: FindFalconViewModel): ViewModel
+    protected abstract fun findFalconViewModel(findFalconViewModel: FindFalconViewModel): ViewModel
 
 }

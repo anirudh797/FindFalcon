@@ -1,18 +1,22 @@
 package com.anirudh.findfalcone.view.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.anirudh.findfalcone.MainActivity
 import com.anirudh.findfalcone.R
 import com.anirudh.findfalcone.data.entity.InfoItem
 import com.anirudh.findfalcone.data.entity.PlanetInfo
 import com.anirudh.findfalcone.data.entity.VehicleInfo
 import com.anirudh.findfalcone.databinding.FragmentFindBinding
+import com.anirudh.findfalcone.replaceFragment
 import com.anirudh.findfalcone.view.adapters.CustomArrayAdapter
 import com.anirudh.findfalcone.view.viewModel.FindFalconViewModel
 import dagger.android.support.AndroidSupportInjection
@@ -46,14 +50,14 @@ class FindFalconFragment : Fragment() {
         destinationAdapter = CustomArrayAdapter(requireContext(), arrayListOf())
         vehiclesAdapter = CustomArrayAdapter(requireContext(), arrayListOf())
         binding.let {
-            it.firstDestination. onItemSelectedListener = planetSelectedListener
-            it.secondDestination. onItemSelectedListener = planetSelectedListener
-            it.thirdDestination. onItemSelectedListener = planetSelectedListener
-            it.fourthDestination. onItemSelectedListener = planetSelectedListener
-            it.firstDestinationVehicle. onItemSelectedListener = vehicleSelectedListener
-            it.secondDestinationVehicle. onItemSelectedListener = vehicleSelectedListener
-            it.thirdDestinationVehicle. onItemSelectedListener = vehicleSelectedListener
-            it.fourthDestinationVehicle. onItemSelectedListener = vehicleSelectedListener
+            it.firstDestination.onItemSelectedListener = planetSelectedListener
+            it.secondDestination.onItemSelectedListener = planetSelectedListener
+            it.thirdDestination.onItemSelectedListener = planetSelectedListener
+            it.fourthDestination.onItemSelectedListener = planetSelectedListener
+            it.firstDestinationVehicle.onItemSelectedListener = vehicleSelectedListener
+            it.secondDestinationVehicle.onItemSelectedListener = vehicleSelectedListener
+            it.thirdDestinationVehicle.onItemSelectedListener = vehicleSelectedListener
+            it.fourthDestinationVehicle.onItemSelectedListener = vehicleSelectedListener
         }
 
     }
@@ -76,10 +80,7 @@ class FindFalconFragment : Fragment() {
     }
 
     private fun setupData() {
-        val res = resources
-        binding.tvTimeTaken.text = java.lang.String.format(
-            res.getString(R.string.totalTimeTaken), "0"
-        )
+        updateTimeTaken("0")
     }
 
 
@@ -87,9 +88,17 @@ class FindFalconFragment : Fragment() {
         binding.btnFind.setOnClickListener {
             val possible = validate()
             if (possible) {
+                val timeTaken = viewModel.getTotalTime()
+                updateTimeTaken(timeTaken)
                 viewModel.findFalcone()
             }
         }
+    }
+
+    private fun updateTimeTaken(time: String) {
+        binding.tvTimeTaken.text = java.lang.String.format(
+            resources.getString(R.string.totalTimeTaken), time
+        )
     }
 
     private fun fetchData() {
@@ -98,7 +107,8 @@ class FindFalconFragment : Fragment() {
 
     private var planetSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-            if (position > 0) {
+            if (position >= 0) {
+                Log.d("Anirudh", "Planet Selected at Position $position ")
                 updatePlanetVehicleInfo()
             }
         }
@@ -108,18 +118,11 @@ class FindFalconFragment : Fragment() {
         }
 
     }
-
-//    private var planetSelectedListener = object : AdapterView. onItemSelectedListener {
-//        override fun onItemClick(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-//            if (position > 0) {
-//                updatePlanetVehicleInfo()
-//            }
-//        }
-//    }
 
     private var vehicleSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-            if (position > 0) {
+            if (position >= 0) {
+                Log.d("Anirudh", "Vehicle Selected at Position $position ")
                 updatePlanetVehicleInfo()
             }
         }
@@ -129,23 +132,20 @@ class FindFalconFragment : Fragment() {
         }
 
     }
-
-//    private var vehicleSelectedListener =
-//        AdapterView. onItemSelectedListener { parent, view, position, id ->
-//            if (position > 0) {
-//                updatePlanetVehicleInfo()
-//            }
-//        }
 
     fun updatePlanetVehicleInfo() {
         val firstDestination = binding.firstDestination.selectedItem as? PlanetInfo ?: return
         val secondDestination = binding.secondDestination.selectedItem as? PlanetInfo ?: return
         val thirdDestination = binding.thirdDestination.selectedItem as? PlanetInfo ?: return
         val fourthDestination = binding.fourthDestination.selectedItem as? PlanetInfo ?: return
-        val firstVehicleDestination = binding.firstDestinationVehicle.selectedItem as? VehicleInfo ?: return
-        val secondVehicleDestination = binding.secondDestinationVehicle.selectedItem as? VehicleInfo ?: return
-        val thirdVehicleDestination = binding.thirdDestinationVehicle.selectedItem as? VehicleInfo ?: return
-        val fourthVehicleDestination = binding.fourthDestinationVehicle.selectedItem as? VehicleInfo ?: return
+        val firstVehicleDestination =
+            binding.firstDestinationVehicle.selectedItem as? VehicleInfo ?: return
+        val secondVehicleDestination =
+            binding.secondDestinationVehicle.selectedItem as? VehicleInfo ?: return
+        val thirdVehicleDestination =
+            binding.thirdDestinationVehicle.selectedItem as? VehicleInfo ?: return
+        val fourthVehicleDestination =
+            binding.fourthDestinationVehicle.selectedItem as? VehicleInfo ?: return
         vehiclesInfo.clear()
         vehiclesInfo.addAll(
             arrayListOf(
@@ -158,11 +158,19 @@ class FindFalconFragment : Fragment() {
         destinationsInfo.clear()
         destinationsInfo.addAll(
             arrayListOf(
-                firstDestination,
-                secondDestination,
-                thirdDestination,
-                fourthDestination
+                firstDestination, secondDestination, thirdDestination, fourthDestination
             )
+        )
+        Log.d(
+            "Anirudh", "Selected planets ${
+                destinationsInfo.map {
+                    (it as PlanetInfo).name
+                }.toMutableList()
+            } vehicles ${
+                vehiclesInfo.map {
+                    (it as VehicleInfo).name
+                }.toMutableList()
+            }"
         )
         if (destinationsInfo.isEmpty() || vehiclesInfo.isEmpty()) {
             return
@@ -220,23 +228,44 @@ class FindFalconFragment : Fragment() {
         }
 
         viewModel.travelSummary.observe(viewLifecycleOwner) {
+            it ?: return@observe
             Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
         }
 
-        viewModel.showError.observe(viewLifecycleOwner) {
+        viewModel.findSuccess.observe(viewLifecycleOwner) {
+            if (it == null)
+                return@observe
+            val successStatus = it.second
+            val resultFragment =
+                successStatus.let { res ->
+                    SearchResultFragment.newInstance(
+                        res,
+                        it.first,
+                        viewModel.getTotalTime()
+                    )
+                }
+            viewModel.resetResult()
+            (activity as AppCompatActivity).replaceFragment(resultFragment)
         }
 
-        viewModel.loadingProgressLiveData.observe(viewLifecycleOwner) {}
+        viewModel.showError.observe(viewLifecycleOwner) {}
+
+        viewModel.loadingProgressLiveData.observe(viewLifecycleOwner) {
+            if (it) {
+                binding.rlContainer.visibility = View.GONE
+                binding.pb.visibility = View.VISIBLE
+            } else {
+                binding.rlContainer.visibility = View.VISIBLE
+                binding.pb.visibility = View.GONE
+            }
+        }
     }
 
 
     private fun validate(): Boolean {
-        return viewModel.validateTravel(destinationsInfo,vehiclesInfo)
+        return viewModel.validateTravel(destinationsInfo, vehiclesInfo)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-    }
 
     companion object {
         @JvmStatic

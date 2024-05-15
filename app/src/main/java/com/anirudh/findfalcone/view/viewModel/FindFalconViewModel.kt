@@ -1,6 +1,7 @@
 package com.anirudh.findfalcone.view.viewModel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -18,7 +19,7 @@ import javax.inject.Inject
 
 class FindFalconViewModel @Inject constructor(
     private val falconRepository: FindFalconRepository,
-    private val application: Application
+    application: Application
 ) :
     AndroidViewModel(application) {
 
@@ -34,33 +35,46 @@ class FindFalconViewModel @Inject constructor(
     private var _planetsList = MutableLiveData<List<InfoItem>>()
     val planetsList: LiveData<List<InfoItem>> = _planetsList
 
-    private var _travelSummary = MutableLiveData<String>()
-    val travelSummary: LiveData<String> = _travelSummary
+    private var _travelSummary = MutableLiveData<String?>()
+    val travelSummary: LiveData<String?> = _travelSummary
+
+    private var _findSuccess = MutableLiveData<Pair<String, Boolean>?>()
+    val findSuccess: LiveData<Pair<String, Boolean>?> = _findSuccess
+
+    private var totalTime = 0f;
 
     private var destinationAndVehicleInfo: HashMap<PlanetInfo, VehicleInfo> = hashMapOf()
 
     private fun getPlanetsAndVehicles() {
         viewModelScope.launch(Dispatchers.IO) {
             _loadingProgressLiveData.postValue(true)
-            val planetsList = falconRepository.getPlanets()
-            _loadingProgressLiveData.postValue(false)
-            if (planetsList.isEmpty()) {
-                _showError.postValue(true)
-            } else {
-                _planetsList.postValue(planetsList)
-                _showError.postValue(false)
+            try {
+                val planetsList = falconRepository.getPlanets()
+                _loadingProgressLiveData.postValue(false)
+                if (planetsList.isEmpty()) {
+                    _travelSummary.postValue(getErrorMsg())
+                } else {
+                    _planetsList.postValue(planetsList)
+                }
+            } catch (ex: Exception) {
+                _travelSummary.postValue(getErrorMsg())
             }
+
         }
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _loadingProgressLiveData.postValue(true)
-            val vehicleList = falconRepository.getVehicles()
-            _loadingProgressLiveData.postValue(false)
-            if (vehicleList.isEmpty()) {
-                _showError.postValue(true)
-            } else {
-                _vehiclesList.postValue(vehicleList)
-                _showError.postValue(false)
+            try {
+                val vehicleList = falconRepository.getVehicles()
+                _loadingProgressLiveData.postValue(false)
+                if (vehicleList.isEmpty()) {
+                    _travelSummary.postValue(getErrorMsg())
+                } else {
+                    _vehiclesList.postValue(vehicleList)
+                }
+            } catch (ex: Exception) {
+                _travelSummary.postValue(getErrorMsg())
             }
+
         }
     }
 
@@ -71,12 +85,13 @@ class FindFalconViewModel @Inject constructor(
 
     private fun getToken() {
         viewModelScope.launch(Dispatchers.IO) {
-//            _loadingProgressLiveData.postValue(true)
-            val response = falconRepository.getToken()
-            RetrofitInstance.ACCESS_TOKEN = response.token
-//            _loadingProgressLiveData.postValue(false)
-//            _vehiclesList.postValue(vehicleList)
-            _showError.postValue(false)
+            Log.d("Anirudh", "getToken VM")
+            try {
+                val response = falconRepository.getToken()
+                RetrofitInstance.ACCESS_TOKEN = response.token
+            } catch (ex: Exception) {
+                _travelSummary.postValue(getErrorMsg())
+            }
         }
     }
 
@@ -85,7 +100,8 @@ class FindFalconViewModel @Inject constructor(
         vehicle: ArrayList<InfoItem?>
     ) {
         destinationAndVehicleInfo.clear()
-        if (!isDestinationsAndPlanetsUnique(destination, vehicle)) {
+        if (!areDestinationsAndPlanetsUnique(destination, vehicle)) {
+            Log.d("Anirudh", "Destination and planets not unique return")
             return
         }
         for (i in 0..3) {
@@ -93,7 +109,7 @@ class FindFalconViewModel @Inject constructor(
         }
     }
 
-    private fun isDestinationsAndPlanetsUnique(
+    private fun areDestinationsAndPlanetsUnique(
         destinationsInfo: ArrayList<InfoItem?>,
         vehiclesInfo: ArrayList<InfoItem?>
     ): Boolean {
@@ -108,7 +124,7 @@ class FindFalconViewModel @Inject constructor(
     ): Boolean {
 
         var res = ""
-        if (!isDestinationsAndPlanetsUnique(
+        if (!areDestinationsAndPlanetsUnique(
                 destinationsInfo,
                 vehiclesInfo
             ) || destinationAndVehicleInfo.size != 4
@@ -118,14 +134,16 @@ class FindFalconViewModel @Inject constructor(
             return false
         }
         val temp = destinationAndVehicleInfo
+        var timeTaken = 0f
         for ((planet, vehicle) in temp) {
             if (planet.distance > vehicle.totalUnits * vehicle.maxDistance) {
                 res += getTravelNotPossible(planet, vehicle) + "\n"
+            } else {
+                timeTaken += (planet.distance / vehicle.speed)
             }
         }
         if (res.isEmpty()) {
-            res = getTravelPossible()
-            _travelSummary.value = res
+            totalTime = timeTaken
             return true
         }
         _travelSummary.value = res
@@ -150,8 +168,55 @@ class FindFalconViewModel @Inject constructor(
         return getApplication<Application>().resources.getString(R.string.travel_not_possible_sameVehicle)
     }
 
-    fun findFalcone() {
+    private fun getSearchFalconeSuccess(): String {
+        return getApplication<Application>().resources.getString(R.string.search_success)
+    }
 
+    private fun getSearchFalconeFailed(): String {
+        return getApplication<Application>().resources.getString(R.string.search_fail)
+    }
+
+    private fun getErrorMsg(): String {
+        return getApplication<Application>().resources.getString(R.string.error_msg)
+    }
+
+
+    fun findFalcone() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val planetsList = destinationAndVehicleInfo.keys.map {
+                it.name
+            }.toList()
+            val vehiclesList = destinationAndVehicleInfo.values.map {
+                it.name
+            }.toList()
+            try {
+                val result =
+                    falconRepository.findFalcon(
+                        RetrofitInstance.ACCESS_TOKEN,
+                        planetsList as ArrayList<String>,
+                        vehiclesList as ArrayList<String>
+                    )
+                if (result.status.equals("success")) {
+                    _findSuccess.postValue(Pair(result.planetName ?: "", true))
+                } else if (result.status.equals("false")) {
+                    _findSuccess.postValue(Pair(getSearchFalconeFailed(), false))
+                } else { //token error
+                    getToken()
+                    _travelSummary.postValue(getErrorMsg())
+                }
+            } catch (ex: Exception) {
+                _travelSummary.postValue(getErrorMsg())
+            }
+        }
+    }
+
+    fun getTotalTime(): String {
+        return totalTime.toString()
+    }
+
+    fun resetResult() {
+        _travelSummary.postValue(null)
+        _findSuccess.postValue(null)
     }
 
 }

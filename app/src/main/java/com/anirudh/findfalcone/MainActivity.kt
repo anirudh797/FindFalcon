@@ -2,6 +2,7 @@ package com.anirudh.findfalcone
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.anirudh.findfalcone.databinding.ActivityMainBinding
 import com.anirudh.findfalcone.view.fragments.FindFalconFragment
@@ -48,5 +49,13 @@ class MainActivity : AppCompatActivity(), HasAndroidInjector {
         return dispatchingAndroidInjector
     }
 
+}
 
+fun AppCompatActivity.replaceFragment(fragment: Fragment) {
+    val fragmentManager = supportFragmentManager
+    val transaction = fragmentManager.beginTransaction()
+    transaction.replace(R.id.fcv, fragment)
+    transaction.setReorderingAllowed(true)
+    transaction.addToBackStack(null)
+    transaction.commit()
 }

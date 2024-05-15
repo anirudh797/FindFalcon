@@ -1,4 +1,4 @@
-package com.anirudh.shaadi.domain.util
+package com.anirudh.findfalcone.domain.util
 
 import android.content.Context
 import android.net.ConnectivityManager
